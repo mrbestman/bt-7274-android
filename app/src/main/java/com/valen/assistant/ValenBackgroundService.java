@@ -73,10 +73,11 @@ public class ValenBackgroundService extends Service {
     }
 
     private void startRecording() {
-        int bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
-        if (bufferSize == AudioRecord.ERROR || bufferSize == AudioRecord.ERROR_BAD_VALUE) {
-            bufferSize = SAMPLE_RATE * 2;
+        int bufferSizeRaw = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
+        if (bufferSizeRaw == AudioRecord.ERROR || bufferSizeRaw == AudioRecord.ERROR_BAD_VALUE) {
+            bufferSizeRaw = SAMPLE_RATE * 2;
         }
+        final int bufferSize = bufferSizeRaw;
 
         try {
             audioRecord = new AudioRecord(
