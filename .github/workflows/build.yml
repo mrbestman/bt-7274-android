@@ -14,7 +14,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up JDK 17
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: '17'
         distribution: 'temurin'
@@ -22,26 +22,17 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
+    - name: Accept licenses
+      run: yes | sdkmanager --licenses
 
-    - name: Accept Android SDK licenses
-      run: yes | sdkmanager --licenses || true
+    - name: Install build tools
+      run: sdkmanager "build-tools;34.0.0" "platforms;android-34"
 
     - name: Build Debug APK
-      run: gradle assembleDebug
-
-    - name: Build Release APK
-      run: gradle assembleRelease
+      run: gradle assembleDebug --no-daemon
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:
         name: BT-7274-debug
         path: app/build/outputs/apk/debug/app-debug.apk
-
-    - name: Upload Release APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: BT-7274-release
-        path: app/build/outputs/apk/release/app-release-unsigned.apk
