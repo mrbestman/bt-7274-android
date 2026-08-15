@@ -1,20 +1,20 @@
 package com.valen.assistant;
 
 import android.annotation.SuppressLint;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
-import android.webkit.JavascriptInterface;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.util.Log;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String TAG = "ValenMain";
     private WebView webView;
     private PermissionManager permissionManager;
     private PowerManager.WakeLock wakeLock;
@@ -24,18 +24,35 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        SslHelper.trustSelfSignedCerts();
+        try {
+            SslHelper.trustSelfSignedCerts();
+        } catch (Exception e) {
+            Log.e(TAG, "SSL init failed (non-fatal): " + e.getMessage());
+        }
 
-        permissionManager = new PermissionManager(this);
-        permissionManager.requestAllPermissions();
+        try {
+            permissionManager = new PermissionManager(this);
+            permissionManager.requestAllPermissions();
+        } catch (Exception e) {
+            Log.e(TAG, "Permission init failed: " + e.getMessage());
+        }
 
-        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
-        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Valen::BackgroundLock");
-        wakeLock.acquire(10 * 60 * 1000L);
+        try {
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Valen::BackgroundLock");
+            wakeLock.acquire(10 * 60 * 1000L);
+        } catch (Exception e) {
+            Log.e(TAG, "Wake lock failed (non-fatal): " + e.getMessage());
+        }
 
         setContentView(R.layout.activity_main);
 
         webView = findViewById(R.id.webView);
+        if (webView == null) {
+            Log.e(TAG, "WebView is null! Layout issue.");
+            finish();
+            return;
+        }
         configureWebView();
         webView.loadUrl("file:///android_asset/index.html");
     }
@@ -43,7 +60,6 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("SetJavaScriptEnabled")
     private void configureWebView() {
         WebSettings settings = webView.getSettings();
-
         settings.setJavaScriptEnabled(true);
         settings.setJavaScriptCanOpenWindowsAutomatically(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
@@ -80,7 +96,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) {
+        if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
             super.onBackPressed();
@@ -96,11 +112,6 @@ public class MainActivity extends AppCompatActivity {
             wakeLock.release();
         }
         super.onDestroy();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
     }
 
     @Override

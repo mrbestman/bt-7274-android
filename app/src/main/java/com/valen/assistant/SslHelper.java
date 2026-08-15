@@ -1,5 +1,7 @@
 package com.valen.assistant;
 
+import android.util.Log;
+
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 
@@ -11,6 +13,7 @@ import javax.net.ssl.X509TrustManager;
 
 public class SslHelper {
 
+    private static final String TAG = "SslHelper";
     private static SSLSocketFactory trustedFactory;
 
     public static void trustSelfSignedCerts() {
@@ -33,7 +36,7 @@ public class SslHelper {
             HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to configure SSL trust", e);
+            Log.e(TAG, "SSL setup failed (non-fatal): " + e.getMessage());
         }
     }
 
