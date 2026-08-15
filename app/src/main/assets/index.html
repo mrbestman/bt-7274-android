@@ -198,9 +198,6 @@
     let isProcessing = false;
     let lastLogTime = 0;
 
-    // --- Android Bridge Detection ---
-    const isAndroid = typeof AndroidBridge !== 'undefined';
-
     // --- Auto-Discovery System ---
     let SERVER_URL = "";
     const DISCOVERY_TIMEOUT_MS = 2500;
@@ -238,16 +235,6 @@
     async function discoverServer() {
       logDebug("Starting server auto-discovery...");
       statusBadge.innerText = "● SEARCHING FOR VALEN SERVER...";
-
-      // Strategy 0: Try Android bridge cached URL first
-      if (isAndroid && AndroidBridge.getServerUrl()) {
-        const cachedUrl = AndroidBridge.getServerUrl();
-        logDebug("Try 0: Android bridge cached URL " + cachedUrl);
-        if (await probeServer(cachedUrl)) {
-          logDebug("SUCCESS via Android bridge cache!");
-          return cachedUrl;
-        }
-      }
 
       // Strategy 1: If loaded directly from the server (not file://), use origin
       if (window.location.protocol.startsWith("http") && window.location.hostname !== "localhost") {
@@ -351,14 +338,20 @@
       }
       if (url) {
         SERVER_URL = url;
-        // Cache the working IP for next time
         try {
           const u = new URL(url);
           localStorage.setItem(CACHED_IP_KEY, u.hostname);
-          if (isAndroid) AndroidBridge.setServerUrl(url);
         } catch (_) {}
         statusBadge.innerText = "● CONNECTED";
         logDebug("Server locked: " + SERVER_URL);
+
+        // If loaded from file:// (Android assets), redirect to server HTTPS URL so mic works
+        if (window.location.protocol === "file:" && window.AndroidBridge) {
+          logDebug("Redirecting WebView to server for mic access...");
+          window.location.href = url + "/";
+          return;
+        }
+
         appendChat("Valen: Connected to server. Tap below to start listening.", "valen-text");
         micBtn.disabled = false;
       } else {

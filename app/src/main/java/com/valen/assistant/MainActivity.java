@@ -72,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
-        webView.addJavascriptInterface(new ValenBridge(this), "AndroidBridge");
+        webView.addJavascriptInterface(new ValenBridge(this, webView), "AndroidBridge");
 
         webView.setWebViewClient(new WebViewClient() {
             @Override

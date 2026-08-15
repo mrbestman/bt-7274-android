@@ -8,15 +8,18 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
 import android.widget.Toast;
 
 public class ValenBridge {
 
     private final Activity activity;
+    private final WebView webView;
     private String cachedServerUrl = "";
 
-    public ValenBridge(Activity activity) {
+    public ValenBridge(Activity activity, WebView webView) {
         this.activity = activity;
+        this.webView = webView;
     }
 
     @JavascriptInterface
@@ -82,5 +85,14 @@ public class ValenBridge {
     @JavascriptInterface
     public String getDeviceName() {
         return Build.MANUFACTURER + " " + Build.MODEL;
+    }
+
+    @JavascriptInterface
+    public void loadServerUrl(String url) {
+        activity.runOnUiThread(() -> {
+            if (webView != null) {
+                webView.loadUrl(url);
+            }
+        });
     }
 }
