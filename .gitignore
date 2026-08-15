@@ -1,0 +1,32 @@
+# Built outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# Gradle
+.gradle/
+local.properties
+gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Logs
+*.log

@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">BT-7274</string>
+    <string name="notification_channel_name">Valen Background Service</string>
+    <string name="notification_channel_desc">Continuous voice listening</string>
+    <string name="notification_title">BT-7274 VALEN AI</string>
+    <string name="notification_listening">Listening for voice...</string>
+</resources>
