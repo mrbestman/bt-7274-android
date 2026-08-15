@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.ValenAssistant" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:colorPrimary">@color/valen_pink</item>
-        <item name="android:colorPrimaryDark">@color/valen_purple</item>
-        <item name="android:colorAccent">@color/valen_blue</item>
+    <style name="Theme.ValenAssistant" parent="Theme.AppCompat.NoActionBar">
+        <item name="colorPrimary">@color/valen_pink</item>
+        <item name="colorPrimaryDark">@color/valen_purple</item>
+        <item name="colorAccent">@color/valen_blue</item>
         <item name="android:statusBarColor">@color/valen_dark</item>
         <item name="android:navigationBarColor">@color/valen_dark</item>
         <item name="android:windowBackground">@color/valen_dark</item>
