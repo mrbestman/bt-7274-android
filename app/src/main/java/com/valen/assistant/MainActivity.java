@@ -54,7 +54,16 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         configureWebView();
-        webView.loadUrl("file:///android_asset/index.html");
+
+        // Try loading from cached server URL first, fall back to assets
+        String cachedUrl = getSharedPreferences("valen", MODE_PRIVATE).getString("server_url", null);
+        if (cachedUrl != null) {
+            Log.d(TAG, "Loading cached server URL: " + cachedUrl);
+            webView.loadUrl(cachedUrl);
+        } else {
+            Log.d(TAG, "No cached URL, loading from assets for discovery");
+            webView.loadUrl("file:///android_asset/index.html");
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")

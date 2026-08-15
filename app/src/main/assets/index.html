@@ -362,7 +362,55 @@
       }
     }
 
-    // --- Voice Listener (unchanged logic) ---
+    const isAndroid = !!window.AndroidBridge;
+
+    function pcmToWav(pcmBase64, sampleRate) {
+      const raw = atob(pcmBase64);
+      const pcmBytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) pcmBytes[i] = raw.charCodeAt(i);
+      const numChannels = 1;
+      const bitsPerSample = 16;
+      const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+      const blockAlign = numChannels * bitsPerSample / 8;
+      const dataSize = pcmBytes.length;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+      function writeStr(off, s) { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); }
+      writeStr(0, "RIFF");
+      view.setUint32(4, 36 + dataSize, true);
+      writeStr(8, "WAVE");
+      writeStr(12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitsPerSample, true);
+      writeStr(36, "data");
+      view.setUint32(40, dataSize, true);
+      new Uint8Array(buffer, 44).set(pcmBytes);
+      return new Blob([buffer], { type: "audio/wav" });
+    }
+
+    window.onNativeRecordingReady = function(pcmBase64) {
+      logDebug("Native recording complete, sending to server...");
+      const wavBlob = pcmToWav(pcmBase64, 16000);
+      processFullUserSpeech(wavBlob);
+    };
+
+    window.onNativeMicError = function(err) {
+      logDebug("NATIVE MIC ERROR: " + err);
+      statusBadge.innerText = "● MIC ERROR";
+      orb.className = "orb";
+      isListenerActive = false;
+      micBtn.innerText = "▶ START 24/7 VOICE LISTENER";
+      micBtn.className = "mic-btn";
+    };
+
+    let nativeVadTimer = null;
+    let nativeSpeakStart = 0;
+    let nativeListeningForSpeech = false;
 
     async function toggleSmartVADListener() {
       if (!SERVER_URL) {
@@ -375,17 +423,67 @@
         micBtn.innerText = "⏹ STOP LISTENER";
         micBtn.className = "mic-btn active";
         logDebug("User tapped Start Listener.");
-        initAudioVAD();
+        if (isAndroid) {
+          initNativeVAD();
+        } else {
+          initAudioVAD();
+        }
       } else {
         isListenerActive = false;
-        if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
-        if (audioContext) audioContext.close();
+        if (isAndroid) {
+          if (window.AndroidBridge.isRecording()) window.AndroidBridge.stopNativeRecording();
+          if (nativeVadTimer) clearInterval(nativeVadTimer);
+          nativeListeningForSpeech = false;
+        } else {
+          if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+          if (audioContext) audioContext.close();
+        }
         orb.className = "orb";
         statusBadge.innerText = "● READY";
         micBtn.innerText = "▶ START 24/7 VOICE LISTENER";
         micBtn.className = "mic-btn";
         logDebug("Listener Stopped.");
       }
+    }
+
+    function initNativeVAD() {
+      logDebug("Starting native Android mic VAD...");
+      window.AndroidBridge.startNativeRecording();
+      orb.className = "orb";
+      statusBadge.innerText = "● LISTENING FOR YOUR VOICE...";
+      logDebug("Native mic active. VAD polling...");
+
+      nativeListeningForSpeech = false;
+      nativeSpeakStart = 0;
+
+      nativeVadTimer = setInterval(() => {
+        if (!isListenerActive || isProcessing) return;
+        const level = window.AndroidBridge.getMicLevel();
+        if (level > 0.02) {
+          if (!nativeListeningForSpeech) {
+            nativeListeningForSpeech = true;
+            nativeSpeakStart = Date.now();
+            orb.className = "orb listening";
+            statusBadge.innerText = "● HEARING YOUR VOICE...";
+            logDebug("Voice detected! (level: " + level.toFixed(3) + ")");
+          }
+        } else if (nativeListeningForSpeech) {
+          const duration = Date.now() - nativeSpeakStart;
+          if (duration > 800) {
+            logDebug("Silence after " + duration + "ms. Stopping recording...");
+            nativeListeningForSpeech = false;
+            if (nativeVadTimer) clearInterval(nativeVadTimer);
+            window.AndroidBridge.stopNativeRecording();
+            statusBadge.innerText = "● NOVA IS THINKING...";
+            orb.className = "orb";
+          } else {
+            logDebug("Speech too short (" + duration + "ms), ignoring.");
+            nativeListeningForSpeech = false;
+            orb.className = "orb";
+            statusBadge.innerText = "● LISTENING FOR YOUR VOICE...";
+          }
+        }
+      }, 100);
     }
 
     async function initAudioVAD() {
@@ -436,7 +534,6 @@
 
       } catch (err) {
         logDebug("MIC ACCESS ERROR: " + err.name + " - " + err.message);
-        alert("Microphone Access Notice: Open this URL in Chrome once to grant permission!");
         isListenerActive = false;
         micBtn.innerText = "▶ START 24/7 VOICE LISTENER";
         micBtn.className = "mic-btn";
@@ -459,7 +556,7 @@
         lastLogTime = now;
       }
 
-      if (averageVolume > 15) { // Lowered threshold from 20 to 15 for better sensitivity
+      if (averageVolume > 15) {
         if (!isSpeaking) {
           isSpeaking = true;
           speechStartTime = Date.now();
@@ -481,13 +578,12 @@
               if (isListenerActive) {
                 orb.className = "orb";
                 statusBadge.innerText = "● LISTENING FOR YOUR VOICE...";
-                // Keep listening without processing
               }
             } else {
               logDebug("Silence detected. Sending to Nova...");
             }
           }
-        }, 2500); // Increased from 1800 to 2500 for better pause tolerance
+        }, 2500);
       }
 
       if (isListenerActive) {
@@ -497,7 +593,7 @@
 
     async function processFullUserSpeech(audioBlob) {
       const formData = new FormData();
-      formData.append("audio", audioBlob, "full_speech.webm");
+      formData.append("audio", audioBlob, "full_speech.wav");
       const selectedVoice = document.getElementById("voiceSelect").value;
       formData.append("voice", selectedVoice);
 
